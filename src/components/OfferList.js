@@ -110,16 +110,25 @@ function OfferList({favorites, setFavorites, compareItems, setCompareItems}) {
                 //const response = await axios.get(`/api/offers?page=${page}&size=12&keyword=${debouncedSearchTerm}&category=${category}&sortBy=${sortBy}`);
                 const response = await axios.get(`${process.env.REACT_APP_API_URL}/api/offers?page=${page}&size=12&keyword=${debouncedSearchTerm}&category=${category}&sortBy=${sortBy}`);
                 // Dacă backend-ul trimite o listă goală, înseamnă că nu mai sunt produse
-                if (response.data.length === 0) {
+                const offersArray = Array.isArray(response.data)
+                    ? response.data
+                    : (response.data && Array.isArray(response.data.content) ? response.data.content : []);
+
+                // Dacă nu am primit elemente, oprim infinite-scroll-ul
+                if (offersArray.length === 0) {
                     setHasMore(false);
                 } else {
-                    // CRITIC PENTRU INFINITE SCROLL: Alipim produsele noi la cele deja existente în stare
+                    // Alipim produsele noi la cele deja existente în mod sigur
                     setOffers(prevOffers => {
-                        // Evităm duplicatele în cazul în care stările se actualizează ciudat
                         const existingIds = new Set(prevOffers.map(o => o.id));
-                        const uniqueNewOffers = response.data.filter(o => !existingIds.has(o.id));
+                        const uniqueNewOffers = offersArray.filter(o => !existingIds.has(o.id));
                         return [...prevOffers, ...uniqueNewOffers];
                     });
+
+                    // Opțional: dacă backend-ul folosește paginare Page, verificăm dacă suntem la ultima pagină
+                    if (response.data && typeof response.data.last !== 'undefined') {
+                        if (response.data.last === true) setHasMore(false);
+                    }
                 }
 
                 //setOffers(response.data);
